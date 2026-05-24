@@ -50,7 +50,7 @@ LD="gcc"
 STRIP="strip"
 DEBUG=""
 LIBNAME=""
-CFLAGS="-Wshadow -Wall -std=gnu99 -I."
+CFLAGS="-Wshadow -Wall -std=gnu11 -I."
 
 for opt; do
     optarg="${opt#*=}"

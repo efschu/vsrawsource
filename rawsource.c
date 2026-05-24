@@ -30,7 +30,7 @@
 
 
 typedef struct rs_hndle rs_hnd_t;
-typedef void (VS_CC *func_write_frame)(rs_hnd_t *, VSFrameRef **, const VSAPI *,
+typedef void (VS_CC *func_write_frame)(rs_hnd_t *, VSFrame **, const VSAPI *,
                                        VSCore *);
 
 struct rs_hndle {
@@ -96,7 +96,7 @@ static const char *open_source_file(rs_hnd_t *rh, const char *src_name)
 
 
 static void VS_CC
-rs_bit_blt(uint8_t *srcp, int row_size, int height, VSFrameRef *dst, int plane,
+rs_bit_blt(uint8_t *srcp, int row_size, int height, VSFrame *dst, int plane,
            const VSAPI *vsapi)
 {
     uint8_t *dstp = vsapi->getWritePtr(dst, plane);
@@ -124,14 +124,14 @@ bitor8to32(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 
 
 static void VS_CC
-write_planar_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_planar_frame(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                    VSCore *core)
 {
     uint8_t *srcp = rh->frame_buff;
-    int bps = rh->vi[0].format->bytesPerSample;
+    int bps = rh->vi[0].format.bytesPerSample;
     int row_size, height;
 
-    for (int i = 0, num = rh->vi[0].format->numPlanes; i < num; i++) {
+    for (int i = 0, num = rh->vi[0].format.numPlanes; i < num; i++) {
         int plane = rh->order[i];
         row_size = vsapi->getFrameWidth(dst[0], plane) * bps;
         row_size = (row_size + rh->row_adjust) & (~rh->row_adjust);
@@ -144,8 +144,8 @@ write_planar_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
         return;
     }
 
-    dst[1] = vsapi->newVideoFrame(rh->vi[1].format, rh->vi[1].width,
-                                  rh->vi[1].height, NULL, core);
+   dst[1] = vsapi->newVideoFrame(&rh->vi[1].format, rh->vi[1].width,
+                                   rh->vi[1].height, NULL, core);
     row_size = vsapi->getFrameWidth(dst[1], 0) * bps;
     row_size = (row_size + rh->row_adjust) & (~rh->row_adjust);
     height = vsapi->getFrameHeight(dst[1], 0);
@@ -154,7 +154,7 @@ write_planar_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_nvxx_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_nvxx_frame(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                  VSCore *core)
 {
     struct uv_t {
@@ -192,7 +192,7 @@ write_nvxx_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_px1x_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_px1x_frame(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                  VSCore *core)
 {
     struct uv16_t {
@@ -227,7 +227,7 @@ write_px1x_frame(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_packed_rgb24(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_packed_rgb24(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                    VSCore *core)
 {
     struct rgb24_t {
@@ -262,7 +262,7 @@ write_packed_rgb24(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_packed_rgb48(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_packed_rgb48(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                    VSCore *core)
 {
     struct rgb48_t {
@@ -294,7 +294,7 @@ write_packed_rgb48(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_packed_rgb32(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_packed_rgb32(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                    VSCore *core)
 {
     struct rgb32_t {
@@ -308,8 +308,8 @@ write_packed_rgb32(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
     int *order = rh->order;
 
-    dst[1] = vsapi->newVideoFrame(rh->vi[1].format, rh->vi[1].width,
-                                  rh->vi[1].height, NULL, core);
+   dst[1] = vsapi->newVideoFrame(&rh->vi[1].format, rh->vi[1].width,
+                                   rh->vi[1].height, NULL, core);
 
     uint32_t *dstp[4];
     for (int i = 0; i < 3; i++) {
@@ -338,7 +338,7 @@ write_packed_rgb32(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
 
 
 static void VS_CC
-write_packed_yuv422(rs_hnd_t *rh, VSFrameRef **dst, const VSAPI *vsapi,
+write_packed_yuv422(rs_hnd_t *rh, VSFrame **dst, const VSAPI *vsapi,
                     VSCore *core)
 {
     struct packed422_t {
@@ -565,7 +565,7 @@ static const char * VS_CC check_args(rs_hnd_t *rh, vs_args_t *va)
         int bytes_per_row_sample;
         int has_alpha;
         int order[4];
-        VSPresetFormat vsformat;
+        VSPresetVideoFormat vsformat;
         func_write_frame func;
     } table[] = {
         { "i420",      2, 2, 3, 1, 0, { 0, 1, 2, 9 }, pfYUV420P8,  write_planar_frame  },
@@ -651,7 +651,7 @@ static const char * VS_CC check_args(rs_hnd_t *rh, vs_args_t *va)
         frame_size += row_size_plane * height_plane;
     }
     rh->frame_size = frame_size;
-    rh->vi[0].format = va->vsapi->getFormatPreset(table[i].vsformat, va->core);
+    va->vsapi->getVideoFormatByID(&rh->vi[0].format, table[i].vsformat, va->core);
     memcpy(rh->order, table[i].order, sizeof(int) * 4);
     rh->write_frame = table[i].func;
     rh->has_alpha = table[i].has_alpha;
@@ -686,17 +686,8 @@ vs_close(void *instance_data, VSCore *core, const VSAPI *vsapi)
 }
 
 
-static void VS_CC
-vs_init(VSMap *in, VSMap *out, void **instance_data, VSNode *node,
-        VSCore *core, const VSAPI *vsapi)
-{
-    rs_hnd_t *rh = (rs_hnd_t *)*instance_data;
-    vsapi->setVideoInfo(rh->vi, rh->has_alpha + 1, node);
-}
-
-
-static const VSFrameRef * VS_CC
-rs_get_frame(int n, int activation_reason, void **instance_data,
+static const VSFrame * VS_CC
+rs_get_frame(int n, int activation_reason, void *instance_data,
              void **frame_data, VSFrameContext *frame_ctx, VSCore *core,
              const VSAPI *vsapi)
 {
@@ -704,7 +695,7 @@ rs_get_frame(int n, int activation_reason, void **instance_data,
         return NULL;
     }
 
-    rs_hnd_t *rh = (rs_hnd_t *)*instance_data;
+    rs_hnd_t *rh = (rs_hnd_t *)instance_data;
 
     int frame_number = n;
     if (n >= rh->vi[0].numFrames) {
@@ -716,15 +707,15 @@ rs_get_frame(int n, int activation_reason, void **instance_data,
         return NULL;
     }
 
-    VSFrameRef *dst[2];
-    dst[0] = vsapi->newVideoFrame(rh->vi[0].format, rh->vi[0].width, rh->vi[0].height,
-                                  NULL, core);
+   VSFrame *dst[2];
+    dst[0] = vsapi->newVideoFrame(&rh->vi[0].format, rh->vi[0].width, rh->vi[0].height,
+                                   NULL, core);
 
-    VSMap *props = vsapi->getFramePropsRW(dst[0]);
-    vsapi->propSetInt(props, "_DurationNum", rh->vi[0].fpsDen, paReplace);
-    vsapi->propSetInt(props, "_DurationDen", rh->vi[0].fpsNum, paReplace);
-    vsapi->propSetInt(props, "_SARNum", rh->sar_num, paReplace);
-    vsapi->propSetInt(props, "_SARDen", rh->sar_den, paReplace);
+    VSMap *props = vsapi->getFramePropertiesRW(dst[0]);
+    vsapi->mapSetInt(props, "_DurationNum", rh->vi[0].fpsDen, maReplace);
+    vsapi->mapSetInt(props, "_DurationDen", rh->vi[0].fpsNum, maReplace);
+    vsapi->mapSetInt(props, "_SARNum", rh->sar_num, maReplace);
+    vsapi->mapSetInt(props, "_SARDen", rh->sar_den, maReplace);
 
     rh->write_frame(rh, dst, vsapi, core);
 
@@ -732,17 +723,18 @@ rs_get_frame(int n, int activation_reason, void **instance_data,
         return dst[0];
     }
 
-    if (vsapi->getOutputIndex(frame_ctx) == 0) {
+    struct { VSNode *node; int n; int output; } *ctx = (void *)frame_ctx;
+    if (ctx->output == 0) {
         vsapi->freeFrame(dst[1]);
         return dst[0];
     }
 
     vsapi->freeFrame(dst[0]);
-    props = vsapi->getFramePropsRW(dst[1]);
-    vsapi->propSetInt(props, "_DurationNum", rh->vi[1].fpsDen, paReplace);
-    vsapi->propSetInt(props, "_DurationDen", rh->vi[1].fpsNum, paReplace);
-    vsapi->propSetInt(props, "_SARNum", rh->sar_num, paReplace);
-    vsapi->propSetInt(props, "_SARDen", rh->sar_den, paReplace);
+    props = vsapi->getFramePropertiesRW(dst[1]);
+    vsapi->mapSetInt(props, "_DurationNum", rh->vi[1].fpsDen, maReplace);
+    vsapi->mapSetInt(props, "_DurationDen", rh->vi[1].fpsNum, maReplace);
+    vsapi->mapSetInt(props, "_SARNum", rh->sar_num, maReplace);
+    vsapi->mapSetInt(props, "_SARDen", rh->sar_den, maReplace);
 
     return dst[1];
 }
@@ -752,7 +744,7 @@ static void VS_CC
 set_args_int(int *p, int default_value, const char *arg, vs_args_t *va)
 {
     int err;
-    *p = (int)va->vsapi->propGetInt(va->in, arg, 0, &err);
+    *p = (int)va->vsapi->mapGetInt(va->in, arg, 0, &err);
     if (err) {
         *p = default_value;
     }
@@ -763,7 +755,7 @@ static void VS_CC
 set_args_int64(int64_t *p, int default_value, const char *arg, vs_args_t *va)
 {
     int err;
-    *p = va->vsapi->propGetInt(va->in, arg, 0, &err);
+    *p = va->vsapi->mapGetInt(va->in, arg, 0, &err);
     if (err) {
         *p = default_value;
     }
@@ -775,7 +767,7 @@ set_args_data(char *p, const char *default_value, const char *arg, size_t n,
               vs_args_t *va)
 {
     int err;
-    const char *data = va->vsapi->propGetData(va->in, arg, 0, &err);
+    const char *data = va->vsapi->mapGetData(va->in, arg, 0, &err);
     strncpy(p, err ? default_value : data, n);
 }
 
@@ -785,7 +777,7 @@ set_args_data(char *p, const char *default_value, const char *arg, size_t n,
     if (cond) {\
         close_handler(rh);\
         snprintf(msg, 240, __VA_ARGS__);\
-        vsapi->setError(out, msg_buff);\
+        vsapi->mapSetError(out, msg_buff);\
         return;\
     }\
 }
@@ -801,7 +793,7 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
     RET_IF_ERROR(!rh, "couldn't create handler");
 
     const char *err =
-        open_source_file(rh, vsapi->propGetData(in, "source", 0, 0));
+        open_source_file(rh, vsapi->mapGetData(in, "source", 0, 0));
     RET_IF_ERROR(err, "%s", err);
 
     int header = check_header(rh);
@@ -845,24 +837,23 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
 
     if (rh->has_alpha) {
         rh->vi[1] = rh->vi[0];
-        VSPresetFormat pf =
-            rh->vi[0].format->bytesPerSample == 1 ? pfGray8 : pfGray16;
-        rh->vi[1].format = vsapi->getFormatPreset(pf, core);
+        VSPresetVideoFormat pf =
+            rh->vi[0].format.bytesPerSample == 1 ? pfGray8 : pfGray16;
+        vsapi->getVideoFormatByID(&rh->vi[1].format, pf, core);
     }
-    vsapi->createFilter(in, out, "Source", vs_init, rs_get_frame, vs_close,
-                        fmSerial, 0, rh, core);
+    vsapi->createVideoFilter(out, "Source", &rh->vi[0], rs_get_frame, vs_close,
+                             fmUnordered, NULL, 0, rh, core);
 }
 #undef RET_IF_ERROR
 
 
-VS_EXTERNAL_API(void) VapourSynthPluginInit(
-    VSConfigPlugin f_config, VSRegisterFunction f_register, VSPlugin *plugin)
+VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi)
 {
-    f_config("chikuzen.does.not.have.his.own.domain.raws", "raws",
-             "Raw-format file Reader for VapourSynth " VS_RAWS_VERSION,
-             VAPOURSYNTH_API_VERSION, 1, plugin);
-    f_register("Source", "source:data;width:int:opt;height:int:opt;"
-               "fpsnum:int:opt;fpsden:int:opt;sarnum:int:opt;sarden:int:opt;"
-               "src_fmt:data:opt;off_header:int:opt;off_frame:int:opt;"
-               "rowbytes_align:int:opt", create_source, NULL, plugin);
+    vspapi->configPlugin("chikuzen.does.not.have.his.own.domain.raws", "raws",
+                         "Raw-format file Reader for VapourSynth " VS_RAWS_VERSION,
+                         VS_MAKE_VERSION(0, 4), VAPOURSYNTH_API_VERSION, 0, plugin);
+    vspapi->registerFunction("Source", "source:data;width:int:opt;height:int:opt;"
+                        "fpsnum:int:opt;fpsden:int:opt;sarnum:int:opt;sarden:int:opt;"
+                        "src_fmt:data:opt;off_header:int:opt;off_frame:int:opt;"
+                        "rowbytes_align:int:opt", "clip:vnode;", create_source, NULL, plugin);
 }
